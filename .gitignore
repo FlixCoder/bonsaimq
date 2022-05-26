@@ -1,0 +1,4 @@
+/target
+/.vscode
+.env
+config.yaml

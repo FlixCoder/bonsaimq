@@ -1,0 +1,28 @@
+name: Rust
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Check and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install nightly Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        components: rustfmt, clippy
+    - name: Style
+      run: cargo +nightly fmt -- --check
+    - name: Install cargo-lints
+      run: cargo install --git https://github.com/FlixCoder/cargo-lints
+    - name: Check and Clippy
+      run: cargo lints clippy --all-targets --workspace -- -D warnings
+    - name: Run tests
+      run: cargo test --workspace --verbose
