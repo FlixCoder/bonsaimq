@@ -1,22 +1,46 @@
 [package]
-name = "bonsaimq"
-version = "0.1.0"
+authors = ["Flix <felix.dommes@rwth-aachen.de>"]
+categories = ["asynchronous", "concurrency", "database"]
+description = "Message/job queue based on bonsaidb, similar to sqlxmq."
+documentation = "https://docs.rs/bonsaimq"
 edition = "2021"
+homepage = "https://github.com/FlixCoder/bonsaimq"
+keywords = ["message", "job", "queue", "database", "persistent"]
+license = "MIT"
+name = "bonsaimq"
+readme = "README.md"
+repository = "https://github.com/FlixCoder/bonsaimq"
+resolver = "2"
+version = "0.1.0"
 
 [dependencies]
-bonsaidb = { version = "0.4.1", features = ["local", "local-async", "local-instrument"] }
-serde = { version = "1.0.137", features = ["derive"] }
+bonsaidb = "0.4.1"
+getrandom = {version = "0.2.6", features = ["std"]}
+serde = {version = "1.0.137", features = ["derive"]}
 serde_json = "1.0.81"
 thiserror = "1.0.31"
 time = "0.3.9"
+tokio = {version = "1.18.0", features = ["rt", "time"]}
+tokio-retry = "0.3.0"
 tracing = "0.1.34"
 tracing-futures = "0.2.5"
 
 [dev-dependencies]
+bonsaidb = {version = "0.4.1", features = ["local", "local-async", "local-instrument", "client"]}
 color-eyre = "0.6.1"
-tokio = { version = "1.18.0", features = ["full"] }
-tracing-subscriber = { version = "0.3.11", features = ["env-filter"] }
+ntest = "0.7.5"
+tokio = {version = "1.18.0", features = ["full"]}
+tracing-subscriber = {version = "0.3.11", features = ["env-filter"]}
 
 [profile.release]
-lto = true
 debug = true
+lto = true
+
+# Also test the examples
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
+test = true
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["tracing-futures"]
