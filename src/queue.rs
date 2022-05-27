@@ -1,4 +1,4 @@
-//! Database message queue implementation
+//! Database storage for the message queue.
 
 use std::time::Duration;
 
@@ -16,70 +16,91 @@ pub type Id = u128;
 /// Timestamp datatype (UNIX timestamp nanos).
 pub type Timestamp = i128;
 
+/// PubSub channel for notifying of new messages to check.
+pub(crate) const MQ_NOTIFY: &str = "message_queue_notify";
+
 /// Database schema for the message queue.
 #[derive(Debug, Schema)]
 #[schema(name = "message_queue", collections = [Message, MessagePayload])]
 pub struct MessageQueueSchema;
 
 /// The message queue's message metadata.
-#[derive(Debug, Serialize, Deserialize, Collection)]
-#[collection(name = "messages", primary_key = Id, views = [DueMessages, LatestMessage])]
+#[derive(Debug, Clone, Serialize, Deserialize, Collection)]
+#[collection(
+	name = "messages",
+	primary_key = Id,
+	natural_id = |msg: &Message| Some(msg.id),
+	views = [DueMessages, LatestMessage]
+)]
 pub struct Message {
+	/// The message ID.
+	pub id: Id,
 	/// Name of the message, i.e. a text message type identifier.
-	name: String,
+	pub name: String,
 	/// Commit timestamp.
-	created_at: Timestamp,
+	pub created_at: Timestamp,
 	/// Next execution timestamp.
-	attempt_at: Timestamp,
+	pub attempt_at: Timestamp,
 	/// Number of executions tried.
-	executions: u32,
+	pub executions: u32,
 	/// Number of retries to do. None = infinite.
-	max_retries: Option<u32>,
+	pub max_retries: Option<u32>,
 	/// Strategy to determine time between retries.
-	retry_timing: RetryTiming,
+	pub retry_timing: RetryTiming,
 	/// Whether or not the message is to be executed in ordered mode. Ordered
 	/// messages are executed after other ordered messages, but unordered
 	/// messages are executed immediately.
-	ordered: bool,
+	pub ordered: bool,
 	/// Dependency, which needs to be finished before. References another
 	/// message by ID.
-	execute_after: Option<Id>,
+	pub execute_after: Option<Id>,
 }
 
 /// Retry timing strategy.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RetryTiming {
 	/// Fixed timing between retries.
 	Fixed(Duration),
-	/// Exponential back-off with maximum time
+	/// Exponential back-off with maximum time.
 	Backoff {
-		/// Starting time in between retries
+		/// Initial time in between retries.
 		initial: Duration,
-		/// Maximum time between retries
+		/// Maximum time between retries.
 		maximum: Option<Duration>,
 	},
 }
 
 /// The message queue's message payloads.
-#[derive(Debug, Serialize, Deserialize, Collection)]
-#[collection(name = "message_payloads", primary_key = Id)]
+#[derive(Debug, Clone, Serialize, Deserialize, Collection)]
+#[collection(
+	name = "message_payloads",
+	primary_key = Id,
+	natural_id = |payload: &MessagePayload| Some(payload.message_id)
+)]
 pub struct MessagePayload {
+	/// The message ID.
+	pub message_id: Id,
 	/// Message JSON payload.
-	payload_json: Option<serde_json::Value>,
+	pub payload_json: Option<serde_json::Value>,
 	/// Message byte payload.
-	payload_bytes: Option<Vec<u8>>,
+	pub payload_bytes: Option<Vec<u8>>,
 }
 
-/// Messages by their due time.
+/// Messages by their due time. Reduces to the first message to be executed in
+/// the key range. Use by key ranges ro receive all due messages. Reduce to
+/// receive the first message to be executed, which can be used to sleep until
+/// then.
 #[derive(Debug, Clone, View)]
-#[view(collection = Message, key = Timestamp, value = u32, name = "due_messages")]
+#[view(collection = Message, key = Timestamp, value = Option<Timestamp>, name = "due_messages")]
 pub struct DueMessages;
 
 impl CollectionViewSchema for DueMessages {
 	type View = Self;
 
 	fn map(&self, document: CollectionDocument<Message>) -> ViewMapResult<Self::View> {
-		document.header.emit_key_and_value(document.contents.attempt_at, 1)
+		document
+			.header
+			.emit_key_and_value(document.contents.attempt_at, Some(document.contents.attempt_at))
 	}
 
 	fn reduce(
@@ -87,7 +108,7 @@ impl CollectionViewSchema for DueMessages {
 		mappings: &[ViewMappedValue<Self::View>],
 		_rereduce: bool,
 	) -> ReduceResult<Self::View> {
-		Ok(mappings.iter().map(|view| view.value).sum())
+		Ok(mappings.iter().filter_map(|view| view.value).min())
 	}
 
 	fn version(&self) -> u64 {
@@ -95,8 +116,9 @@ impl CollectionViewSchema for DueMessages {
 	}
 }
 
-/// Latest Message that is in ordered mode and should be executed before a new
-/// one.
+/// Latest Message view that reduces to messages in ordered mode that should be
+/// executed before a new one. This should be used to find the dependency for
+/// new ordered messages.
 #[derive(Debug, Clone, View)]
 #[view(collection = Message, key = Timestamp, value = Option<Id>, name = "latest_message")]
 pub struct LatestMessage;
@@ -130,4 +152,33 @@ impl CollectionViewSchema for LatestMessage {
 	fn version(&self) -> u64 {
 		0
 	}
+}
+
+impl RetryTiming {
+	/// Compute the next retry duration based on the number of executions
+	/// already done. So for the first retry (second execution), executions is
+	/// supposed to be zero.
+	#[must_use]
+	pub fn next_duration(&self, executions: u32) -> Duration {
+		match *self {
+			RetryTiming::Fixed(fixed) => fixed,
+			RetryTiming::Backoff { initial, maximum } => {
+				let duration = initial.saturating_mul(2_u32.saturating_pow(executions));
+				if let Some(max) = maximum {
+					duration.min(max)
+				} else {
+					duration
+				}
+			}
+		}
+	}
+}
+
+/// Generate a new ID.
+pub(crate) fn generate_id() -> Result<Id, getrandom::Error> {
+	let mut buf = [0_u8; std::mem::size_of::<Id>()];
+	getrandom::getrandom(&mut buf)?;
+	// SAFETY: Safe because we made sure it has the correct size using size_of.
+	let id = unsafe { std::mem::transmute(buf) };
+	Ok(id)
 }
