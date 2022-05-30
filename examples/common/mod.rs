@@ -12,7 +12,7 @@ pub fn init() {
 	SETUP.call_once(|| {
 		color_eyre::install().expect("color-eyre");
 
-		let level_filter = LevelFilter::TRACE;
+		let level_filter = LevelFilter::WARN;
 		let filter = EnvFilter::from_default_env()
 			.add_directive(level_filter.into())
 			.add_directive("want=warn".parse().expect("parse env filter"))

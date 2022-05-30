@@ -21,7 +21,8 @@ async fn greet(mut job: CurrentJob) {
 
 /// Example job function 2
 async fn greet_german(_job: CurrentJob) {
-	panic!("This one fails, but doesn't kill anything! :|");
+	println!("This one fails and would be retried after a second.");
+	// No job.complete()
 }
 
 // The JobRegistry provides a way to spawn new jobs and provides the interface

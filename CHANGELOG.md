@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2022-05-30
+
+### Bug Fixes
+
+- Remove lock file
+
 ## [0.1.0] - 2022-05-29
 
 ### Features
