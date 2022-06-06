@@ -19,8 +19,9 @@ use color_eyre::Result;
 static COUNT: AtomicUsize = AtomicUsize::new(0);
 
 /// Counting handler that does not complete the job, so should be retried.
-async fn counter(_job: CurrentJob) {
+async fn counter(_job: CurrentJob) -> Result<()> {
 	COUNT.fetch_add(1, Ordering::SeqCst);
+	Ok(())
 }
 
 job_registry!(JobRegistry, {

@@ -37,11 +37,12 @@ use color_eyre::Result;
 
 /// Example job function. It receives a handle to the current job, which gives
 /// the ability to get the input payload, complete the job and more.
-async fn greet(mut job: CurrentJob) {
+async fn greet(mut job: CurrentJob) -> color_eyre::Result<()> {
 	// Load the JSON payload and make sure it is there.
-	let name: String = job.payload_json().expect("input should be given").expect("deserializing");
+	let name: String = job.payload_json().expect("input should be given")?;
 	println!("Hello {name}!");
-	job.complete().await.expect("access to DB");
+	job.complete().await?;
+	Ok(())
 }
 
 // The JobRegistry provides a way to spawn new jobs and provides the interface

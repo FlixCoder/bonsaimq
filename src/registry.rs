@@ -2,13 +2,17 @@
 //! specified types. Allows to spawn new jobs / messages using
 //! `JobRegistry::Handle.builder().spawn().await?`.
 
-use std::{future::Future, pin::Pin};
+use std::{error::Error, future::Future, pin::Pin};
 
 use crate::{spawn::JobBuilder, CurrentJob};
 
 /// Function type of the jobs returned by the job registry.
-pub type JobFunctionType =
-	Box<dyn FnMut(CurrentJob) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
+pub type JobFunctionType = Box<
+	dyn FnMut(
+			CurrentJob,
+		) -> Pin<Box<dyn Future<Output = Result<(), Box<dyn Error + Send + Sync>>> + Send>>
+		+ Send,
+>;
 
 /// Functions the registry exposes.
 pub trait JobRegister: Sized {
@@ -29,7 +33,9 @@ pub trait JobRegister: Sized {
 /// Example:
 /// ```
 /// # use bonsaimq::{job_registry, CurrentJob};
-/// async fn async_message_handler_fn(_job: CurrentJob) {}
+/// async fn async_message_handler_fn(_job: CurrentJob) -> color_eyre::Result<()> {
+///     Ok(())
+/// }
 ///
 /// job_registry!(JobRegistry, {
 ///     Ident: "message_name" => async_message_handler_fn,
@@ -80,7 +86,9 @@ macro_rules! job_registry {
 			#[inline]
 			fn function(&self) -> $crate::JobFunctionType {
 				match *self {
-					$(Self::$msg_fn_name => Box::new(|job| Box::pin($msg_fn(job)))),*
+					$(Self::$msg_fn_name => Box::new(|job| Box::pin(async move {
+						$msg_fn(job).await.map_err(Into::into)
+					}))),*
 				}
 			}
 		}
@@ -92,6 +100,8 @@ macro_rules! job_registry {
 mod tests {
 	#![allow(clippy::expect_used, unused_qualifications, clippy::unused_async)]
 
+	use color_eyre::Result;
+
 	use super::*;
 	use crate::job_registry;
 
@@ -100,8 +110,12 @@ mod tests {
 		OtherFn: "foxes" => self::some_other_fn,
 	});
 
-	async fn some_fn(_job: CurrentJob) {}
-	async fn some_other_fn(_job: CurrentJob) {}
+	async fn some_fn(_job: CurrentJob) -> Result<()> {
+		Ok(())
+	}
+	async fn some_other_fn(_job: CurrentJob) -> Result<(), Box<dyn Error + Send + Sync>> {
+		Ok(())
+	}
 
 	#[test]
 	fn test_job_registry() {
