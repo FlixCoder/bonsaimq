@@ -11,18 +11,22 @@ use bonsaimq::{job_registry, CurrentJob, JobRegister, JobRunner, MessageQueueSch
 use color_eyre::Result;
 
 /// Example job function. It receives a handle to the current job, which gives
-/// the ability to get the input payload, complete the job and more.
-async fn greet(mut job: CurrentJob) {
+/// the ability to get the input payload, complete the job and more. The
+/// function returns an error that can be turned into a `Box<dyn Error + Send +
+/// Sync>`.
+async fn greet(mut job: CurrentJob) -> Result<()> {
 	// Load the JSON payload and make sure it is there.
 	let name: String = job.payload_json().expect("input should be given").expect("deserializing");
 	println!("Hello {name}!");
 	job.complete().await.expect("access to DB");
+	Ok(())
 }
 
-/// Example job function 2
-async fn greet_german(_job: CurrentJob) {
+/// Example job function 2, using a general error type.
+async fn greet_german(_job: CurrentJob) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 	println!("This one fails and would be retried after a second.");
 	// No job.complete()
+	Ok(())
 }
 
 // The JobRegistry provides a way to spawn new jobs and provides the interface

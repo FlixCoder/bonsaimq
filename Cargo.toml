@@ -42,5 +42,11 @@ name = "simple"
 path = "examples/simple.rs"
 test = true
 
+[[example]]
+name = "error-handling"
+path = "examples/error_handling.rs"
+test = true
+
+# Ignore false positives in cargo udeps
 [package.metadata.cargo-udeps.ignore]
 normal = ["tracing-futures"]

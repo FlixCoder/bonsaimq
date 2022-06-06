@@ -19,17 +19,22 @@ use crate::{
 	AbortOnDropHandle, CurrentJob, Error, JobRegister,
 };
 
+/// Error handler dynamic function type.
+type ErrorHandler = Arc<dyn Fn(Box<dyn std::error::Error + Send + Sync>) + Send + Sync>;
+
 /// Job Runner. This is the job execution system to be run in the background. It
-/// runs on the specified database and using a specific job registry.
-#[derive(Debug)]
+/// runs on the specified database and using a specific job registry. It also
+/// allows to set a callback for errors that appear in jobs.
 pub struct JobRunner<DB> {
 	/// The database handle.
 	db: Arc<DB>,
+	/// The error handling function for the jobs.
+	error_handler: Option<ErrorHandler>,
 }
 
 impl<DB> Clone for JobRunner<DB> {
 	fn clone(&self) -> Self {
-		Self { db: self.db.clone() }
+		Self { db: self.db.clone(), error_handler: self.error_handler.clone() }
 	}
 }
 
@@ -39,7 +44,17 @@ where
 {
 	/// Create a new job runner on this database.
 	pub fn new(db: DB) -> Self {
-		Self { db: Arc::new(db) }
+		Self { db: Arc::new(db), error_handler: None }
+	}
+
+	/// Set the error handler callback to be called when jobs return an error.
+	#[must_use]
+	pub fn set_error_handler<F>(mut self, handler: F) -> Self
+	where
+		F: Fn(Box<dyn std::error::Error + Send + Sync>) + Send + Sync + 'static,
+	{
+		self.error_handler = Some(Arc::new(handler));
+		self
 	}
 
 	/// Get messages that are due at the specified time.
@@ -130,7 +145,6 @@ where
 					// TODO: Do something with the job handle?
 					let _jh = current_job.run(job.function());
 				} else {
-					// TODO: Just silently ignore?
 					tracing::trace!(
 						"Job {} is not registered and will be ignored.",
 						msg.document.contents.name
@@ -148,11 +162,22 @@ where
 	}
 }
 
+impl<DB: Debug> Debug for JobRunner<DB> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("JobRunner")
+			.field("db", &self.db)
+			.field("error_handler", &"<err handler fn>")
+			.finish()
+	}
+}
+
 /// JobRunner handle for the jobs. Workaround for putting the database into
 /// CurrentJob, which requires generics.. Performs all the necessary database
 /// access for the jobs.
 #[async_trait]
 pub(crate) trait JobRunnerHandle: Debug {
+	/// Handle an error of a job.
+	fn handle_job_error(&self, err: Box<dyn std::error::Error + Send + Sync>);
 	/// Complete the job with the specified ID.
 	async fn complete(&self, id: Id) -> Result<(), Error>;
 	/// Keep the job alive. Updates the job's database message to avoid multiple
@@ -168,6 +193,12 @@ impl<DB: Debug> JobRunnerHandle for JobRunner<DB>
 where
 	DB: AsyncConnection + AsyncPubSub + 'static,
 {
+	fn handle_job_error(&self, err: Box<dyn std::error::Error + Send + Sync>) {
+		if let Some(err_handler) = &self.error_handler {
+			err_handler(err);
+		}
+	}
+
 	#[tracing::instrument(level = "debug", skip(self))]
 	async fn complete(&self, id: Id) -> Result<(), Error> {
 		tracing::trace!("Completing job {id}.");

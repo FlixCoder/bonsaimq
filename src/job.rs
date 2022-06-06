@@ -90,7 +90,7 @@ impl CurrentJob {
 				let db = self.db.clone();
 
 				tracing::trace!("Starting job with ID {id}.");
-				function(self).await;
+				let res = function(self).await;
 
 				tracing::trace!("Updating job with ID {id} after execution.");
 				RetryIf::spawn(
@@ -99,6 +99,12 @@ impl CurrentJob {
 					Error::should_retry,
 				)
 				.await?;
+
+				// Handle the job's error
+				if let Err(err) = res {
+					db.handle_job_error(err);
+				}
+
 				tracing::trace!("Job with ID {id} finished execution.");
 				Ok(())
 			}

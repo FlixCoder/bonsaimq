@@ -19,9 +19,10 @@ use color_eyre::Result;
 static COUNT: AtomicUsize = AtomicUsize::new(0);
 
 /// Counting handler.
-async fn counter(mut job: CurrentJob) {
+async fn counter(mut job: CurrentJob) -> Result<()> {
 	COUNT.fetch_add(1, Ordering::SeqCst);
-	job.complete().await.expect("completing job");
+	job.complete().await?;
+	Ok(())
 }
 
 job_registry!(JobRegistry, {

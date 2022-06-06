@@ -16,11 +16,12 @@ use color_eyre::Result;
 static COUNT: AtomicUsize = AtomicUsize::new(0);
 
 /// Ordered counting handler.
-async fn counter(mut job: CurrentJob) {
+async fn counter(mut job: CurrentJob) -> Result<()> {
 	let expected = job.payload_bytes().expect("byte payload")[0];
 	let nr = COUNT.fetch_add(1, Ordering::SeqCst);
 	assert_eq!(nr, expected as usize);
-	job.complete().await.expect("completing job");
+	job.complete().await?;
+	Ok(())
 }
 
 job_registry!(JobRegistry, {
