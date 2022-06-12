@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::task::JoinHandle;
 use tokio_retry::{strategy::FixedInterval, RetryIf};
 use tracing_futures::Instrument;
@@ -104,6 +104,9 @@ impl CurrentJob {
 
 	/// Complete the job. Mark it as completed. Without doing this, it will
 	/// be retried!
+	///
+	/// This method retries, but still can fail and should possibly be retried
+	/// in that case. You can use [`Error::should_retry`] to find out.
 	pub async fn complete(&mut self) -> Result<(), Error> {
 		RetryIf::spawn(
 			FixedInterval::from_millis(10).take(2),
@@ -117,5 +120,76 @@ impl CurrentJob {
 		Ok(())
 	}
 
-	// TODO: Checkpoint capability.
+	/// Start setting a checkpoint (with the checkpoint builder), which means
+	/// simply setting the input payload for the job. The next job execution
+	/// will then start with the new input data. It is recommended to keep
+	/// running the job and use the data without restarting the job as well.
+	/// Otherwise, keep in mind that this checkpoint does not extend the job's
+	/// number of executions, so there might be less maximum executions than
+	/// needed for executing all checkpoint stages.
+	#[must_use]
+	pub fn checkpoint(&mut self) -> Checkpoint<'_> {
+		Checkpoint::new(self)
+	}
+}
+
+/// Checkpoint builder and setter.
+#[derive(Debug)]
+pub struct Checkpoint<'a> {
+	/// The handle to the current job
+	job: &'a mut CurrentJob,
+	/// JSON payload.
+	payload_json: Option<serde_json::Value>,
+	/// Byte payload.
+	payload_bytes: Option<Vec<u8>>,
+}
+
+impl<'a> Checkpoint<'a> {
+	/// Create new checkpoint builder / setter.
+	fn new(job: &'a mut CurrentJob) -> Self {
+		let payload_json = job.payload_json.clone();
+		let payload_bytes = job.payload_bytes.clone();
+		Self { job, payload_json, payload_bytes }
+	}
+
+	/// Set the JSON payload to a new value.
+	pub fn payload_json<S: Serialize>(
+		mut self,
+		payload: impl Into<Option<S>>,
+	) -> Result<Self, Error> {
+		let payload_json = payload.into().map(|s| serde_json::to_value(s)).transpose()?;
+		self.payload_json = payload_json;
+		Ok(self)
+	}
+
+	/// Set the byte payload to a new value.
+	#[must_use]
+	pub fn payload_bytes(mut self, payload: impl Into<Option<Vec<u8>>>) -> Self {
+		self.payload_bytes = payload.into();
+		self
+	}
+
+	/// Set the checkpoint and write it to the database.
+	///
+	/// This method retries, but still can fail and should possibly be retried
+	/// in that case. You can use [`Error::should_retry`] to find out.
+	pub async fn set(mut self) -> Result<(), Error> {
+		RetryIf::spawn(
+			FixedInterval::from_millis(10).take(2),
+			|| {
+				self.job.db.checkpoint(
+					self.job.id,
+					self.payload_json.clone(),
+					self.payload_bytes.clone(),
+				)
+			},
+			Error::should_retry,
+		)
+		.await?;
+
+		self.job.payload_json = self.payload_json;
+		self.job.payload_bytes = self.payload_bytes;
+
+		Ok(())
+	}
 }

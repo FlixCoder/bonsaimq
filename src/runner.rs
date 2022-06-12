@@ -189,6 +189,13 @@ pub(crate) trait JobRunnerHandle: Debug {
 	async fn job_update(&self, id: Id) -> Result<bool, Error>;
 	/// Notify the runner to re-check for jobs to execute now.
 	async fn notify(&self) -> Result<(), Error>;
+	/// Set a checkpoint by setting the job's input payloads to something new.
+	async fn checkpoint(
+		&self,
+		id: Id,
+		payload_json: Option<serde_json::Value>,
+		payload_bytes: Option<Vec<u8>>,
+	) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -276,5 +283,18 @@ where
 		Ok(())
 	}
 
-	// TODO: Checkpoint capability.
+	async fn checkpoint(
+		&self,
+		id: Id,
+		payload_json: Option<serde_json::Value>,
+		payload_bytes: Option<Vec<u8>>,
+	) -> Result<(), Error> {
+		if let Some(mut payloads) = MessagePayload::get_async(id, self.db.as_ref()).await? {
+			payloads.contents.payload_json = payload_json;
+			payloads.contents.payload_bytes = payload_bytes;
+			payloads.update_async(self.db.as_ref()).await?;
+		}
+
+		Ok(())
+	}
 }

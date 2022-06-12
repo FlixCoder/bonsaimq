@@ -36,6 +36,10 @@ tracing-subscriber = {version = "0.3.11", features = ["env-filter"]}
 debug = true
 lto = true
 
+# Ignore false positives in cargo udeps
+[package.metadata.cargo-udeps.ignore]
+normal = ["tracing-futures"]
+
 # Also test the examples
 [[example]]
 name = "simple"
@@ -47,6 +51,7 @@ name = "error-handling"
 path = "examples/error_handling.rs"
 test = true
 
-# Ignore false positives in cargo udeps
-[package.metadata.cargo-udeps.ignore]
-normal = ["tracing-futures"]
+[[example]]
+name = "checkpoints"
+path = "examples/checkpoints.rs"
+test = true
