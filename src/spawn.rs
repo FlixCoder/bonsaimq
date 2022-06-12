@@ -30,8 +30,8 @@ pub struct JobBuilder {
 	ordered: bool,
 	/// Initial execution delay.
 	delay: Option<Duration>,
-	/// Maximum amount of retries.
-	max_retries: Option<u32>,
+	/// Maximum amount of executions.
+	max_executions: Option<u32>,
 	/// Retry timing, i.e. how much time should be in between job retries.
 	retry_timing: RetryTiming,
 	/// JSON payload.
@@ -51,7 +51,7 @@ impl JobBuilder {
 			id: None,
 			ordered: false,
 			delay: None,
-			max_retries: None,
+			max_executions: None,
 			retry_timing: RetryTiming::Backoff {
 				initial: Duration::from_secs(1),
 				maximum: Some(Duration::from_secs(60 * 60)),
@@ -87,11 +87,12 @@ impl JobBuilder {
 		self
 	}
 
-	/// Set the maximum number of retries. None = infinite retrying.
+	/// Set the maximum number of executions. None = infinite retrying. Zero
+	/// executions will result in the job never being executed!
 	#[must_use]
 	#[inline]
-	pub fn max_retries(mut self, max_retries: impl Into<Option<u32>>) -> Self {
-		self.max_retries = max_retries.into();
+	pub fn max_executions(mut self, max_executions: impl Into<Option<u32>>) -> Self {
+		self.max_executions = max_executions.into();
 		self
 	}
 
@@ -145,7 +146,7 @@ impl JobBuilder {
 			created_at: now,
 			attempt_at,
 			executions: 0,
-			max_retries: self.max_retries,
+			max_executions: self.max_executions,
 			retry_timing: self.retry_timing,
 			ordered: self.ordered,
 			execute_after,

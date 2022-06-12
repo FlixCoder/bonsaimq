@@ -58,14 +58,9 @@ impl CurrentJob {
 
 	/// Keep alive this job by pushing forward the `attempt_at` field in the
 	/// database.
-	pub(crate) async fn keep_alive(
-		db: JobRunnerHandler,
-		id: Id,
-	) -> Result<JoinHandle<Result<(), Error>>, Error> {
-		db.keep_alive(id).await?;
-
+	pub(crate) fn keep_alive(db: JobRunnerHandler, id: Id) -> JoinHandle<Result<(), Error>> {
 		let span = tracing::debug_span!("job-keep-alive");
-		Ok(tokio::task::spawn(
+		tokio::task::spawn(
 			async move {
 				loop {
 					let duration = RetryIf::spawn(
@@ -78,11 +73,13 @@ impl CurrentJob {
 				}
 			}
 			.instrument(span),
-		))
+		)
 	}
 
 	/// Job running function that handles retries as well etc.
-	pub(crate) fn run(self, mut function: JobFunctionType) -> JoinHandle<Result<(), Error>> {
+	pub(crate) fn run(mut self, mut function: JobFunctionType) -> JoinHandle<Result<(), Error>> {
+		self.keep_alive = Some(Self::keep_alive(self.db.clone(), self.id).into());
+
 		let span = tracing::debug_span!("job-run");
 		tokio::task::spawn(
 			async move {
@@ -92,18 +89,11 @@ impl CurrentJob {
 				tracing::trace!("Starting job with ID {id}.");
 				let res = function(self).await;
 
-				tracing::trace!("Updating job with ID {id} after execution.");
-				RetryIf::spawn(
-					FixedInterval::from_millis(10).take(2),
-					|| db.job_update(id),
-					Error::should_retry,
-				)
-				.await?;
-
 				// Handle the job's error
 				if let Err(err) = res {
 					db.handle_job_error(err);
 				}
+				db.notify().await?;
 
 				tracing::trace!("Job with ID {id} finished execution.");
 				Ok(())

@@ -20,12 +20,23 @@ static COUNT: AtomicUsize = AtomicUsize::new(0);
 
 /// Counting handler that does not complete the job, so should be retried.
 async fn counter(_job: CurrentJob) -> Result<()> {
-	COUNT.fetch_add(1, Ordering::SeqCst);
+	let val = COUNT.fetch_add(1, Ordering::SeqCst);
+	tracing::info!("Counting execution nr. {}", val + 1);
+	panic!("I am panicking even!");
+}
+
+static KEPT_ALIVE: AtomicUsize = AtomicUsize::new(0);
+
+/// Waiting handler that tests keep alive mechanics.
+async fn keep_alive(_job: CurrentJob) -> Result<()> {
+	KEPT_ALIVE.fetch_add(1, Ordering::Relaxed);
+	tokio::time::sleep(Duration::from_secs(9999)).await;
 	Ok(())
 }
 
 job_registry!(JobRegistry, {
 	Counter: "counter" => counter,
+	KeepAlive: "keep-alive" => keep_alive,
 });
 
 #[tokio::test]
@@ -47,7 +58,7 @@ async fn same_id() -> Result<()> {
 }
 
 #[tokio::test]
-#[ntest::timeout(30000)]
+#[ntest::timeout(60000)]
 async fn retrying() -> Result<()> {
 	common::init();
 
@@ -56,18 +67,42 @@ async fn retrying() -> Result<()> {
 	let db = AsyncDatabase::open::<MessageQueueSchema>(StorageConfiguration::new(db_path)).await?;
 	let job_runner = JobRunner::new(db.clone()).run::<JobRegistry>();
 
-	let n = 4;
+	let n = 5;
 	let id = JobRegistry::Counter
 		.builder()
 		.id(123_456_789)
-		.max_retries(n)
+		.max_executions(n)
 		.retry_timing(bonsaimq::RetryTiming::Fixed(Duration::from_millis(10)))
 		.spawn(&db)
 		.await?;
 
 	bonsaimq::await_job(id, 100, &db).await?;
 
-	assert_eq!(COUNT.load(Ordering::SeqCst), n as usize + 1);
+	assert_eq!(COUNT.load(Ordering::SeqCst), n as usize);
+
+	job_runner.abort();
+	tokio::fs::remove_dir_all(db_path).await?;
+	Ok(())
+}
+
+#[tokio::test]
+async fn kept_alive() -> Result<()> {
+	common::init();
+
+	let db_path = "keep-alive-test.bonsaidb";
+	tokio::fs::remove_dir_all(db_path).await.ok();
+	let db = AsyncDatabase::open::<MessageQueueSchema>(StorageConfiguration::new(db_path)).await?;
+	let job_runner = JobRunner::new(db.clone()).run::<JobRegistry>();
+
+	JobRegistry::KeepAlive
+		.builder()
+		.retry_timing(bonsaimq::RetryTiming::Fixed(Duration::from_millis(500)))
+		.spawn(&db)
+		.await?;
+
+	tokio::time::sleep(Duration::from_secs(10)).await;
+
+	assert_eq!(KEPT_ALIVE.load(Ordering::Relaxed), 1);
 
 	job_runner.abort();
 	tokio::fs::remove_dir_all(db_path).await?;
