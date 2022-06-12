@@ -127,23 +127,22 @@ where
 						}
 					}
 
-					// Keep alive, load payload annd start the job
-					let keep_alive =
-						CurrentJob::keep_alive(Arc::new(self.clone()), msg.document.contents.id)
-							.await?;
+					// Update the job and start it with the payloads if max executions haven't been
+					// reached.
+					if self.job_update(msg.document.contents.id).await? {
+						let payloads = self.message_payloads(msg.document.contents.id).await?;
+						let current_job = CurrentJob {
+							id: msg.document.contents.id,
+							name: job.name(),
+							db: Arc::new(self.clone()),
+							payload_json: payloads.0,
+							payload_bytes: payloads.1,
+							keep_alive: None,
+						};
 
-					let payloads = self.message_payloads(msg.document.contents.id).await?;
-					let current_job = CurrentJob {
-						id: msg.document.contents.id,
-						name: job.name(),
-						db: Arc::new(self.clone()),
-						payload_json: payloads.0,
-						payload_bytes: payloads.1,
-						keep_alive: Some(keep_alive.into()),
-					};
-
-					// TODO: Do something with the job handle?
-					let _jh = current_job.run(job.function());
+						// Dropping the handle to the running job.. Panics will not cause
+						let _jh = current_job.run(job.function());
+					}
 				} else {
 					tracing::trace!(
 						"Job {} is not registered and will be ignored.",
@@ -184,8 +183,12 @@ pub(crate) trait JobRunnerHandle: Debug {
 	/// concurrent executions.
 	async fn keep_alive(&self, id: Id) -> Result<Duration, Error>;
 	/// Job update function, that updates the job's database message for the
-	/// next retry after job execution.
-	async fn job_update(&self, id: Id) -> Result<(), Error>;
+	/// next retry before job execution. Returns whether the job should really
+	/// be executed (true) or if it has already reached the maximum retries
+	/// (false).
+	async fn job_update(&self, id: Id) -> Result<bool, Error>;
+	/// Notify the runner to re-check for jobs to execute now.
+	async fn notify(&self) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -243,22 +246,33 @@ where
 	}
 
 	#[tracing::instrument(level = "debug", skip(self))]
-	async fn job_update(&self, id: Id) -> Result<(), Error> {
+	async fn job_update(&self, id: Id) -> Result<bool, Error> {
 		if let Some(mut message) = Message::get_async(id, self.db.as_ref()).await? {
-			tracing::trace!("Updating job {id} for retry.");
+			tracing::trace!("Updating job {id} for execution/retry.");
 
-			if message.contents.max_retries.map_or(false, |max| message.contents.executions >= max)
+			message.contents.executions += 1;
+			if message
+				.contents
+				.max_executions
+				.map_or(false, |max| message.contents.executions > max)
 			{
-				return self.complete(id).await;
+				self.complete(id).await?;
+				return Ok(false);
 			}
 
 			let duration = message.contents.retry_timing.next_duration(message.contents.executions);
 			let now = OffsetDateTime::now_utc().unix_timestamp_nanos();
 			message.contents.attempt_at = now + Timestamp::try_from(duration.as_nanos())?;
-			message.contents.executions += 1;
 
 			message.update_async(self.db.as_ref()).await?;
+			Ok(true)
+		} else {
+			Ok(false)
 		}
+	}
+
+	async fn notify(&self) -> Result<(), Error> {
+		self.db.publish(&MQ_NOTIFY, &()).await?;
 		Ok(())
 	}
 

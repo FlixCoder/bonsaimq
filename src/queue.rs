@@ -43,8 +43,9 @@ pub struct Message {
 	pub attempt_at: Timestamp,
 	/// Number of executions tried.
 	pub executions: u32,
-	/// Number of retries to do. None = infinite.
-	pub max_retries: Option<u32>,
+	/// Number of executions to do. None = infinite. Zero means never being
+	/// executed!
+	pub max_executions: Option<u32>,
 	/// Strategy to determine time between retries.
 	pub retry_timing: RetryTiming,
 	/// Whether or not the message is to be executed in ordered mode. Ordered
@@ -156,14 +157,16 @@ impl CollectionViewSchema for LatestMessage {
 
 impl RetryTiming {
 	/// Compute the next retry duration based on the number of executions
-	/// already done. So for the first retry (second execution), executions is
-	/// supposed to be zero.
+	/// already done. So for calculating the time after the first execution,
+	/// executions is supposed to be one.
 	#[must_use]
 	pub fn next_duration(&self, executions: u32) -> Duration {
 		match *self {
 			RetryTiming::Fixed(fixed) => fixed,
 			RetryTiming::Backoff { initial, maximum } => {
-				let duration = initial.saturating_mul(2_u32.saturating_pow(executions));
+				let duration =
+					initial.saturating_mul(2_u32.saturating_pow(executions.saturating_sub(1)));
+
 				if let Some(max) = maximum {
 					duration.min(max)
 				} else {
