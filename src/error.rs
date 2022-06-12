@@ -20,6 +20,9 @@ pub enum Error {
 	/// Integer conversion error.
 	#[error("Integer conversion error: {0}")]
 	TryFromInt(#[from] TryFromIntError),
+	/// Serde JSON (de-)serialization error.
+	#[error("Serde JSON (de-)serialization failed: {0}")]
+	SerdeJson(#[from] serde_json::Error),
 }
 
 impl Error {
