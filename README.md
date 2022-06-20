@@ -12,7 +12,7 @@ Import the project using:
 
 ```toml
 # adjust the version to the latest version:
-bonsaimq = "0.1.0"
+bonsaimq = "0.2.0"
 # or
 bonsaimq = { git = "https://github.com/FlixCoder/bonsaimq" }
 ```
