@@ -3,6 +3,7 @@
 
 use std::{fmt::Debug, sync::Arc, time::Duration};
 
+use anymap::CloneAny;
 use bonsaidb::core::{
 	async_trait::async_trait,
 	connection::AsyncConnection,
@@ -21,21 +22,19 @@ use crate::{
 
 /// Error handler dynamic function type.
 type ErrorHandler = Arc<dyn Fn(Box<dyn std::error::Error + Send + Sync>) + Send + Sync>;
+/// Type map for saving the runner-context.
+type Context = anymap::Map<dyn CloneAny + Send + Sync>;
 
 /// Job Runner. This is the job execution system to be run in the background. It
 /// runs on the specified database and using a specific job registry. It also
 /// allows to set a callback for errors that appear in jobs.
 pub struct JobRunner<DB> {
 	/// The database handle.
-	db: Arc<DB>,
+	db: DB,
 	/// The error handling function for the jobs.
 	error_handler: Option<ErrorHandler>,
-}
-
-impl<DB> Clone for JobRunner<DB> {
-	fn clone(&self) -> Self {
-		Self { db: self.db.clone(), error_handler: self.error_handler.clone() }
-	}
+	/// Outside context type-map to provide resources to the jobs.
+	context: Context,
 }
 
 impl<DB> JobRunner<DB>
@@ -44,7 +43,7 @@ where
 {
 	/// Create a new job runner on this database.
 	pub fn new(db: DB) -> Self {
-		Self { db: Arc::new(db), error_handler: None }
+		Self { db, error_handler: None, context: anymap::Map::new() }
 	}
 
 	/// Set the error handler callback to be called when jobs return an error.
@@ -57,6 +56,65 @@ where
 		self
 	}
 
+	/// Add context to the runner. Only one instance per type can be inserted!
+	#[must_use]
+	pub fn set_context<C: Clone + Send + Sync + 'static>(mut self, context: C) -> Self {
+		self.context.insert(context);
+		self
+	}
+
+	/// Spawn and run the daemon for processing messages/jobs in the background.
+	/// Keep this handle as long as you want jobs to be executed in the
+	/// background! You can also use and await the handle like normal
+	/// [`JoinHandle`](tokio::task::JoinHandle)s.
+	#[must_use]
+	pub fn run<REG>(self) -> AbortOnDropHandle<Result<(), Error>>
+	where
+		REG: JobRegister + Send + Sync + 'static,
+	{
+		let internal_runner = InternalJobRunner {
+			db: Arc::new(self.db),
+			error_handler: self.error_handler,
+			context: Arc::new(self.context),
+		};
+		tokio::task::spawn(internal_runner.job_queue::<REG>()).into()
+	}
+}
+
+impl<DB: Debug> Debug for JobRunner<DB> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("JobRunner")
+			.field("db", &self.db)
+			.field("error_handler", &"<err handler fn>")
+			.field("context", &self.context)
+			.finish()
+	}
+}
+
+/// The internal job runner. Created using the public interface [`JobRunner`].
+struct InternalJobRunner<DB> {
+	/// The database handle.
+	db: Arc<DB>,
+	/// The error handling function for the jobs.
+	error_handler: Option<ErrorHandler>,
+	/// Outside context type-map to provide resources to the jobs.
+	context: Arc<Context>,
+}
+
+impl<DB> Clone for InternalJobRunner<DB> {
+	fn clone(&self) -> Self {
+		Self {
+			db: self.db.clone(),
+			error_handler: self.error_handler.clone(),
+			context: self.context.clone(),
+		}
+	}
+}
+
+impl<DB> InternalJobRunner<DB>
+where
+	DB: AsyncConnection + AsyncPubSub + Debug + 'static,
+{
 	/// Get messages that are due at the specified time.
 	async fn due_messages(
 		&self,
@@ -86,18 +144,6 @@ where
 		Ok(MessagePayload::get_async(id, self.db.as_ref()).await?.map_or((None, None), |payload| {
 			(payload.contents.payload_json, payload.contents.payload_bytes)
 		}))
-	}
-
-	/// Spawn and run the daemon for processing messages/jobs in the background.
-	/// Keep this handle as long as you want jobs to be executed in the
-	/// background! You can also use and await the handle like normal
-	/// [`JoinHandle`](tokio::task::JoinHandle)s.
-	#[must_use]
-	pub fn run<REG>(self) -> AbortOnDropHandle<Result<(), Error>>
-	where
-		REG: JobRegister + Send + Sync + 'static,
-	{
-		tokio::task::spawn(self.job_queue::<REG>()).into()
 	}
 
 	/// Internal job queue runner.
@@ -161,11 +207,12 @@ where
 	}
 }
 
-impl<DB: Debug> Debug for JobRunner<DB> {
+impl<DB: Debug> Debug for InternalJobRunner<DB> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("JobRunner")
 			.field("db", &self.db)
 			.field("error_handler", &"<err handler fn>")
+			.field("context", &self.context)
 			.finish()
 	}
 }
@@ -175,6 +222,8 @@ impl<DB: Debug> Debug for JobRunner<DB> {
 /// access for the jobs.
 #[async_trait]
 pub(crate) trait JobRunnerHandle: Debug {
+	/// Get access to the context map.
+	fn context(&self) -> &Context;
 	/// Handle an error of a job.
 	fn handle_job_error(&self, err: Box<dyn std::error::Error + Send + Sync>);
 	/// Complete the job with the specified ID.
@@ -199,10 +248,14 @@ pub(crate) trait JobRunnerHandle: Debug {
 }
 
 #[async_trait]
-impl<DB: Debug> JobRunnerHandle for JobRunner<DB>
+impl<DB: Debug> JobRunnerHandle for InternalJobRunner<DB>
 where
 	DB: AsyncConnection + AsyncPubSub + 'static,
 {
+	fn context(&self) -> &Context {
+		&self.context
+	}
+
 	fn handle_job_error(&self, err: Box<dyn std::error::Error + Send + Sync>) {
 		if let Some(err_handler) = &self.error_handler {
 			err_handler(err);

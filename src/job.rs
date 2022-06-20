@@ -56,6 +56,42 @@ impl CurrentJob {
 		self.payload_bytes.as_ref()
 	}
 
+	/// Retrieve the context of the specified type.
+	#[must_use]
+	pub fn context<C: Clone + Send + Sync + 'static>(&self) -> Option<C> {
+		self.db.context().get::<C>().cloned()
+	}
+
+	/// Complete the job. Mark it as completed. Without doing this, it will
+	/// be retried!
+	///
+	/// This method retries, but still can fail and should possibly be retried
+	/// in that case. You can use [`Error::should_retry`] to find out.
+	pub async fn complete(&mut self) -> Result<(), Error> {
+		RetryIf::spawn(
+			FixedInterval::from_millis(10).take(2),
+			|| self.db.complete(self.id),
+			Error::should_retry,
+		)
+		.await?;
+		if let Some(keep_alive) = self.keep_alive.take() {
+			keep_alive.abort();
+		};
+		Ok(())
+	}
+
+	/// Start setting a checkpoint (with the checkpoint builder), which means
+	/// simply setting the input payload for the job. The next job execution
+	/// will then start with the new input data. It is recommended to keep
+	/// running the job and use the data without restarting the job as well.
+	/// Otherwise, keep in mind that this checkpoint does not extend the job's
+	/// number of executions, so there might be less maximum executions than
+	/// needed for executing all checkpoint stages.
+	#[must_use]
+	pub fn checkpoint(&mut self) -> Checkpoint<'_> {
+		Checkpoint::new(self)
+	}
+
 	/// Keep alive this job by pushing forward the `attempt_at` field in the
 	/// database.
 	pub(crate) fn keep_alive(db: JobRunnerHandler, id: Id) -> JoinHandle<Result<(), Error>> {
@@ -100,36 +136,6 @@ impl CurrentJob {
 			}
 			.instrument(span),
 		)
-	}
-
-	/// Complete the job. Mark it as completed. Without doing this, it will
-	/// be retried!
-	///
-	/// This method retries, but still can fail and should possibly be retried
-	/// in that case. You can use [`Error::should_retry`] to find out.
-	pub async fn complete(&mut self) -> Result<(), Error> {
-		RetryIf::spawn(
-			FixedInterval::from_millis(10).take(2),
-			|| self.db.complete(self.id),
-			Error::should_retry,
-		)
-		.await?;
-		if let Some(keep_alive) = self.keep_alive.take() {
-			keep_alive.abort();
-		};
-		Ok(())
-	}
-
-	/// Start setting a checkpoint (with the checkpoint builder), which means
-	/// simply setting the input payload for the job. The next job execution
-	/// will then start with the new input data. It is recommended to keep
-	/// running the job and use the data without restarting the job as well.
-	/// Otherwise, keep in mind that this checkpoint does not extend the job's
-	/// number of executions, so there might be less maximum executions than
-	/// needed for executing all checkpoint stages.
-	#[must_use]
-	pub fn checkpoint(&mut self) -> Checkpoint<'_> {
-		Checkpoint::new(self)
 	}
 }
 

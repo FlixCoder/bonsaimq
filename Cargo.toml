@@ -14,6 +14,7 @@ resolver = "2"
 version = "0.1.1"
 
 [dependencies]
+anymap = "1.0.0-beta.2"
 bonsaidb = "0.4.1"
 getrandom = {version = "0.2.6", features = ["std"]}
 serde = {version = "1.0.137", features = ["derive"]}
@@ -28,7 +29,7 @@ tracing-futures = "0.2.5"
 [dev-dependencies]
 bonsaidb = {version = "0.4.1", features = ["local", "local-async", "local-instrument", "client"]}
 color-eyre = "0.6.1"
-ntest = "0.7.5"
+ntest = "0.8.1"
 tokio = {version = "1.18.0", features = ["full"]}
 tracing-subscriber = {version = "0.3.11", features = ["env-filter"]}
 
@@ -54,4 +55,9 @@ test = true
 [[example]]
 name = "checkpoints"
 path = "examples/checkpoints.rs"
+test = true
+
+[[example]]
+name = "context"
+path = "examples/context.rs"
 test = true
