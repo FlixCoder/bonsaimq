@@ -1,5 +1,9 @@
 # Bonsaimq
 
+[![crates.io page](https://img.shields.io/crates/v/bonsaimq.svg)](https://crates.io/crates/bonsaimq)
+[![docs.rs page](https://docs.rs/bonsaimq/badge.svg)](https://docs.rs/bonsaimq/)
+![license: MIT](https://img.shields.io/crates/l/bonsaimq.svg)
+
 Simple database message queue based on [bonsaidb](https://github.com/khonsulabs/bonsaidb).
 
 The project is highly influenced by [sqlxmq](https://github.com/Diggsey/sqlxmq).
@@ -29,8 +33,8 @@ Besides the following simple example, see the examples in the [examples folder](
 
 ```rust
 use bonsaidb::local::{
-	config::{Builder, StorageConfiguration},
-	AsyncDatabase,
+    config::{Builder, StorageConfiguration},
+    AsyncDatabase,
 };
 use bonsaimq::{job_registry, CurrentJob, JobRegister, JobRunner, MessageQueueSchema};
 use color_eyre::Result;
@@ -38,39 +42,39 @@ use color_eyre::Result;
 /// Example job function. It receives a handle to the current job, which gives
 /// the ability to get the input payload, complete the job and more.
 async fn greet(mut job: CurrentJob) -> color_eyre::Result<()> {
-	// Load the JSON payload and make sure it is there.
-	let name: String = job.payload_json().expect("input should be given")?;
-	println!("Hello {name}!");
-	job.complete().await?;
-	Ok(())
+    // Load the JSON payload and make sure it is there.
+    let name: String = job.payload_json().expect("input should be given")?;
+    println!("Hello {name}!");
+    job.complete().await?;
+    Ok(())
 }
 
 // The JobRegistry provides a way to spawn new jobs and provides the interface
 // for the JobRunner to find the functions to execute for the jobs.
 job_registry!(JobRegistry, {
-	Greetings: "greet" => greet,
+    Greetings: "greet" => greet,
 });
 
 #[tokio::main]
 async fn main() -> Result<()> {
-	// Open a local database for this example.
-	let db_path = "simple-doc-example.bonsaidb";
-	let db = AsyncDatabase::open::<MessageQueueSchema>(StorageConfiguration::new(db_path)).await?;
+    // Open a local database for this example.
+    let db_path = "simple-doc-example.bonsaidb";
+    let db = AsyncDatabase::open::<MessageQueueSchema>(StorageConfiguration::new(db_path)).await?;
 
-	// Start the job runner to execute jobs from the messages in the queue in the
-	// database.
-	let job_runner = JobRunner::new(db.clone()).run::<JobRegistry>();
+    // Start the job runner to execute jobs from the messages in the queue in the
+    // database.
+    let job_runner = JobRunner::new(db.clone()).run::<JobRegistry>();
 
-	// Spawn new jobs via a message on the database queue.
-	let job_id = JobRegistry::Greetings.builder().payload_json("cats")?.spawn(&db).await?;
+    // Spawn new jobs via a message on the database queue.
+    let job_id = JobRegistry::Greetings.builder().payload_json("cats")?.spawn(&db).await?;
 
-	// Wait for job to finish execution, polling every 100 ms.
-	bonsaimq::await_job(job_id, 100, &db).await?;
+    // Wait for job to finish execution, polling every 100 ms.
+    bonsaimq::await_job(job_id, 100, &db).await?;
 
-	// Clean up.
-	job_runner.abort(); // Is done automatically on drop.
-	tokio::fs::remove_dir_all(db_path).await?;
-	Ok(())
+    // Clean up.
+    job_runner.abort(); // Is done automatically on drop.
+    tokio::fs::remove_dir_all(db_path).await?;
+    Ok(())
 }
 ```
 
