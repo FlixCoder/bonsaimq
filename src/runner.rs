@@ -248,9 +248,9 @@ pub(crate) trait JobRunnerHandle: Debug {
 }
 
 #[async_trait]
-impl<DB: Debug> JobRunnerHandle for InternalJobRunner<DB>
+impl<DB> JobRunnerHandle for InternalJobRunner<DB>
 where
-	DB: AsyncConnection + AsyncPubSub + 'static,
+	DB: AsyncConnection + AsyncPubSub + Debug + 'static,
 {
 	fn context(&self) -> &Context {
 		&self.context
