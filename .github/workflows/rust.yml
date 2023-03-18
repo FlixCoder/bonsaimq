@@ -11,18 +11,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install nightly Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: nightly
-        components: rustfmt, clippy
-    - name: Style
-      run: cargo +nightly fmt -- --check
-    - name: Install cargo-lints
-      run: cargo install --git https://github.com/FlixCoder/cargo-lints
-    - name: Check and Clippy
-      run: cargo lints clippy --all-targets --workspace -- -D warnings
-    - name: Run tests
-      run: cargo test --no-run && cargo test --workspace -- --nocapture
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        run: |
+          rustup update
+          rustup component add clippy
+          rustup toolchain install nightly --component rustfmt
+
+      - name: Load cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Style
+        run: cargo +nightly fmt -- --check
+
+      - name: Install cargo-lints
+        run: cargo install --git https://github.com/FlixCoder/cargo-lints
+
+      - name: Check and Clippy
+        run: cargo lints clippy --all-targets --workspace -- -D warnings
+
+      - name: Run tests
+        run: cargo test --workspace --no-run && cargo test --workspace -- --nocapture
