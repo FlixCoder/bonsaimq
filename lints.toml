@@ -2,7 +2,9 @@
 # For all clippy lints please visit: https://rust-lang.github.io/rust-clippy/master/
 #
 deny = []
-allow = []
+allow = [
+    'clippy::tabs_in_doc_comments',
+]
 warn = [
     'clippy::branches_sharing_code',
     'clippy::cast_lossless',
@@ -35,6 +37,7 @@ warn = [
     'clippy::large_types_passed_by_value',
     'clippy::lossy_float_literal',
     'clippy::macro_use_imports',
+    'clippy::manual_let_else',
     'clippy::manual_ok_or',
     'clippy::many_single_char_names',
     'clippy::map_unwrap_or',
