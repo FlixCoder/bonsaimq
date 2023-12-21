@@ -3,7 +3,6 @@
 
 use std::{fmt::Debug, sync::Arc, time::Duration};
 
-use anymap::CloneAny;
 use bonsaidb::core::{
 	async_trait::async_trait,
 	connection::AsyncConnection,
@@ -23,7 +22,7 @@ use crate::{
 /// Error handler dynamic function type.
 type ErrorHandler = Arc<dyn Fn(Box<dyn std::error::Error + Send + Sync>) + Send + Sync>;
 /// Type map for saving the runner-context.
-type Context = anymap::Map<dyn CloneAny + Send + Sync>;
+type Context = erased_set::ErasedSyncSet;
 
 /// Job Runner. This is the job execution system to be run in the background. It
 /// runs on the specified database and using a specific job registry. It also
@@ -43,7 +42,7 @@ where
 {
 	/// Create a new job runner on this database.
 	pub fn new(db: DB) -> Self {
-		Self { db, error_handler: None, context: anymap::Map::new() }
+		Self { db, error_handler: None, context: Context::new() }
 	}
 
 	/// Set the error handler callback to be called when jobs return an error.
