@@ -5,8 +5,9 @@ use std::time::Duration;
 use bonsaidb::core::{
 	document::{CollectionDocument, Emit},
 	schema::{
-		view::map::Mappings, Collection, CollectionViewSchema, ReduceResult, Schema, View,
-		ViewMapResult, ViewMappedValue,
+		view::{map::Mappings, ViewUpdatePolicy},
+		Collection, CollectionMapReduce, ReduceResult, Schema, View, ViewMapResult,
+		ViewMappedValue, ViewSchema,
 	},
 };
 use serde::{Deserialize, Serialize};
@@ -29,11 +30,11 @@ pub struct MessageQueueSchema;
 #[collection(
 	name = "messages",
 	primary_key = Id,
-	natural_id = |msg: &Message| Some(msg.id),
 	views = [DueMessages, LatestMessage]
 )]
 pub struct Message {
-	/// The message ID.
+	/// The message ID.#
+	#[natural_id]
 	pub id: Id,
 	/// Name of the message, i.e. a text message type identifier.
 	pub name: String,
@@ -76,10 +77,10 @@ pub enum RetryTiming {
 #[collection(
 	name = "message_payloads",
 	primary_key = Id,
-	natural_id = |payload: &MessagePayload| Some(payload.message_id)
 )]
 pub struct MessagePayload {
 	/// The message ID.
+	#[natural_id]
 	pub message_id: Id,
 	/// Message JSON payload.
 	pub payload_json: Option<serde_json::Value>,
@@ -95,10 +96,21 @@ pub struct MessagePayload {
 #[view(collection = Message, key = Timestamp, value = Option<Timestamp>, name = "due_messages")]
 pub struct DueMessages;
 
-impl CollectionViewSchema for DueMessages {
+impl ViewSchema for DueMessages {
 	type View = Self;
+	type MappedKey<'doc> = <Self as View>::Key;
 
-	fn map(&self, document: CollectionDocument<Message>) -> ViewMapResult<Self::View> {
+	fn update_policy(&self) -> ViewUpdatePolicy {
+		ViewUpdatePolicy::default()
+	}
+
+	fn version(&self) -> u64 {
+		0
+	}
+}
+
+impl CollectionMapReduce for DueMessages {
+	fn map<'doc>(&self, document: CollectionDocument<Message>) -> ViewMapResult<'doc, Self::View> {
 		document
 			.header
 			.emit_key_and_value(document.contents.attempt_at, Some(document.contents.attempt_at))
@@ -111,10 +123,6 @@ impl CollectionViewSchema for DueMessages {
 	) -> ReduceResult<Self::View> {
 		Ok(mappings.iter().filter_map(|view| view.value).min())
 	}
-
-	fn version(&self) -> u64 {
-		0
-	}
 }
 
 /// Latest Message view that reduces to messages in ordered mode that should be
@@ -124,10 +132,21 @@ impl CollectionViewSchema for DueMessages {
 #[view(collection = Message, key = Timestamp, value = Option<Id>, name = "latest_message")]
 pub struct LatestMessage;
 
-impl CollectionViewSchema for LatestMessage {
+impl ViewSchema for LatestMessage {
 	type View = Self;
+	type MappedKey<'doc> = <Self as View>::Key;
 
-	fn map(&self, document: CollectionDocument<Message>) -> ViewMapResult<Self::View> {
+	fn update_policy(&self) -> ViewUpdatePolicy {
+		ViewUpdatePolicy::Unique
+	}
+
+	fn version(&self) -> u64 {
+		0
+	}
+}
+
+impl CollectionMapReduce for LatestMessage {
+	fn map<'doc>(&self, document: CollectionDocument<Message>) -> ViewMapResult<'doc, Self::View> {
 		if document.contents.ordered {
 			document
 				.header
@@ -144,14 +163,6 @@ impl CollectionViewSchema for LatestMessage {
 	) -> ReduceResult<Self::View> {
 		let max_val = mappings.iter().max_by_key(|view| view.key);
 		Ok(max_val.and_then(|view| view.value))
-	}
-
-	fn unique(&self) -> bool {
-		true
-	}
-
-	fn version(&self) -> u64 {
-		0
 	}
 }
 

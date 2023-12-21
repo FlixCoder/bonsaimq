@@ -141,9 +141,11 @@ where
 		&self,
 		id: Id,
 	) -> Result<(Option<serde_json::Value>, Option<Vec<u8>>), BonsaiError> {
-		Ok(MessagePayload::get_async(id, self.db.as_ref()).await?.map_or((None, None), |payload| {
-			(payload.contents.payload_json, payload.contents.payload_bytes)
-		}))
+		Ok(MessagePayload::get_async(&id, self.db.as_ref())
+			.await?
+			.map_or((None, None), |payload| {
+				(payload.contents.payload_json, payload.contents.payload_bytes)
+			}))
 	}
 
 	/// Internal job queue runner.
@@ -168,7 +170,7 @@ where
 				if let Some(job) = REG::from_name(&msg.document.contents.name) {
 					// Filter out messages with active dependencies
 					if let Some(dependency) = msg.document.contents.execute_after {
-						if Message::get_async(dependency, self.db.as_ref()).await?.is_some() {
+						if Message::get_async(&dependency, self.db.as_ref()).await?.is_some() {
 							continue;
 						}
 					}
@@ -266,9 +268,9 @@ where
 	async fn complete(&self, id: Id) -> Result<(), Error> {
 		tracing::trace!("Completing job {id}.");
 
-		let del_message = Message::get_async(id, self.db.as_ref()).await?.map(|msg| msg.header);
+		let del_message = Message::get_async(&id, self.db.as_ref()).await?.map(|msg| msg.header);
 		let del_payload =
-			MessagePayload::get_async(id, self.db.as_ref()).await?.map(|payload| payload.header);
+			MessagePayload::get_async(&id, self.db.as_ref()).await?.map(|payload| payload.header);
 
 		let mut tx = Transaction::new();
 		if let Some(header) = del_message {
@@ -290,7 +292,7 @@ where
 
 	#[tracing::instrument(level = "debug", skip(self))]
 	async fn keep_alive(&self, id: Id) -> Result<Duration, Error> {
-		if let Some(mut message) = Message::get_async(id, self.db.as_ref()).await? {
+		if let Some(mut message) = Message::get_async(&id, self.db.as_ref()).await? {
 			tracing::trace!("Keeping job {id} alive.");
 
 			let duration = message.contents.retry_timing.next_duration(message.contents.executions);
@@ -307,7 +309,7 @@ where
 
 	#[tracing::instrument(level = "debug", skip(self))]
 	async fn job_update(&self, id: Id) -> Result<bool, Error> {
-		if let Some(mut message) = Message::get_async(id, self.db.as_ref()).await? {
+		if let Some(mut message) = Message::get_async(&id, self.db.as_ref()).await? {
 			tracing::trace!("Updating job {id} for execution/retry.");
 
 			message.contents.executions += 1;
@@ -342,7 +344,7 @@ where
 		payload_json: Option<serde_json::Value>,
 		payload_bytes: Option<Vec<u8>>,
 	) -> Result<(), Error> {
-		if let Some(mut payloads) = MessagePayload::get_async(id, self.db.as_ref()).await? {
+		if let Some(mut payloads) = MessagePayload::get_async(&id, self.db.as_ref()).await? {
 			payloads.contents.payload_json = payload_json;
 			payloads.contents.payload_bytes = payload_bytes;
 			payloads.update_async(self.db.as_ref()).await?;

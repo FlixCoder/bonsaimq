@@ -12,7 +12,7 @@ use crate::{
 /// Check whether the job with the given ID exists. Can also be used to check if
 /// a job has finished already.
 pub async fn job_exists<DB: AsyncConnection>(id: Id, db: &DB) -> Result<bool, Error> {
-	Ok(Message::get_async(id, db).await?.is_some())
+	Ok(Message::get_async(&id, db).await?.is_some())
 }
 
 /// Wait for a job to finish using a fixed interval to check if it exists.

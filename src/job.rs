@@ -179,7 +179,7 @@ impl<'a> Checkpoint<'a> {
 	///
 	/// This method retries, but still can fail and should possibly be retried
 	/// in that case. You can use [`Error::should_retry`] to find out.
-	pub async fn set(mut self) -> Result<(), Error> {
+	pub async fn set(self) -> Result<(), Error> {
 		RetryIf::spawn(
 			FixedInterval::from_millis(10).take(2),
 			|| {
