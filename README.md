@@ -14,9 +14,15 @@ Warning: This project is in early alpha and should not be used in production!
 
 Import the project using:
 
+```bash
+cargo add bonsaimq
+```
+
+or
+
 ```toml
 # adjust the version to the latest version:
-bonsaimq = "0.2.0"
+bonsaimq = "0.3.0"
 # or
 bonsaimq = { git = "https://github.com/FlixCoder/bonsaimq" }
 ```
