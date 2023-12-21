@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2023-12-21
+
+### Continuous Integration Pipeline
+
+- Update Rust CI
+- Update CI
+
+### Miscellaneous Tasks
+
+- Fix new clippy lint
+- Add badges
+- Update formatting, lints and dependencies
+- Add sponsors button
+- Upgrade to bonsaidb 0.5
+
+### Refactor
+
+- Replace anymap with erased_set
+
 ## [0.2.0] - 2022-06-20
 
 ### Bug Fixes
