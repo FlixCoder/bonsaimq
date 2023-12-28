@@ -131,12 +131,14 @@ impl CurrentJob {
 				let db = self.db.clone();
 
 				tracing::trace!("Starting job with ID {id}.");
-				let res = function(self).await;
+				let res = tokio::spawn(function(self)).await;
 				currently_running.fetch_sub(1, Ordering::Relaxed);
 
-				// Handle the job's error
-				if let Err(err) = res {
-					db.handle_job_error(err);
+				// Handle the job's error.
+				match res {
+					Err(_) => tracing::warn!("Job with ID {id} panicked!"),
+					Ok(Err(err)) => db.handle_job_error(err),
+					Ok(_) => {}
 				}
 				db.notify().await?;
 
