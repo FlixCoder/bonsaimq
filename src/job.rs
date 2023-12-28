@@ -1,6 +1,9 @@
 //! Provider for job handlers.
 
-use std::sync::Arc;
+use std::sync::{
+	atomic::{AtomicUsize, Ordering},
+	Arc,
+};
 
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::task::JoinHandle;
@@ -113,10 +116,15 @@ impl CurrentJob {
 	}
 
 	/// Job running function that handles retries as well etc.
-	pub(crate) fn run(mut self, mut function: JobFunctionType) -> JoinHandle<Result<(), Error>> {
+	pub(crate) fn run(
+		mut self,
+		mut function: JobFunctionType,
+		currently_running: Arc<AtomicUsize>,
+	) -> JoinHandle<Result<(), Error>> {
 		self.keep_alive = Some(Self::keep_alive(self.db.clone(), self.id).into());
 
 		let span = tracing::debug_span!("job-run");
+		currently_running.fetch_add(1, Ordering::Relaxed);
 		tokio::task::spawn(
 			async move {
 				let id = self.id;
@@ -124,6 +132,7 @@ impl CurrentJob {
 
 				tracing::trace!("Starting job with ID {id}.");
 				let res = function(self).await;
+				currently_running.fetch_sub(1, Ordering::Relaxed);
 
 				// Handle the job's error
 				if let Err(err) = res {

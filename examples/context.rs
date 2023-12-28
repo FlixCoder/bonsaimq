@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
 
 	// Start the job runner to execute jobs from the messages in the queue in the
 	// database.
-	let job_runner = JobRunner::new(db.clone()).set_context("cats").run::<JobRegistry>();
+	let job_runner = JobRunner::new(db.clone()).with_context("cats").run::<JobRegistry>();
 
 	// Spawn new jobs via a message on the database queue.
 	let job_id = JobRegistry::Greet.builder().spawn(&db).await?;

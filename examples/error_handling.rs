@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
 	let error_received = Arc::new(AtomicBool::new(false));
 	let err_received = error_received.clone();
 	let job_runner = JobRunner::new(db.clone())
-		.set_error_handler(move |_err| {
+		.with_error_handler(move |_err| {
 			err_received.store(true, Ordering::SeqCst);
 		})
 		.run::<JobRegistry>();
