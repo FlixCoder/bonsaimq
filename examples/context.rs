@@ -10,11 +10,11 @@
 mod common;
 
 use bonsaidb::local::{
-	config::{Builder, StorageConfiguration},
 	AsyncDatabase,
+	config::{Builder, StorageConfiguration},
 };
-use bonsaimq::{job_registry, CurrentJob, JobRegister, JobRunner, MessageQueueSchema};
-use color_eyre::{eyre::eyre, Result};
+use bonsaimq::{CurrentJob, JobRegister, JobRunner, MessageQueueSchema, job_registry};
+use color_eyre::{Result, eyre::eyre};
 
 /// Example job function using context. It receives a handle to the current job,
 /// which gives the ability to get the context.

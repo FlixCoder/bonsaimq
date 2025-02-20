@@ -11,10 +11,10 @@ use serde::Serialize;
 use time::OffsetDateTime;
 
 use crate::{
-	queue::{
-		generate_id, Id, LatestMessage, Message, MessagePayload, RetryTiming, Timestamp, MQ_NOTIFY,
-	},
 	Error,
+	queue::{
+		Id, LatestMessage, MQ_NOTIFY, Message, MessagePayload, RetryTiming, Timestamp, generate_id,
+	},
 };
 
 /// Builder for spawning a job.  By default, `ordered` mode is off and infinite

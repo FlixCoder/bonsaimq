@@ -10,10 +10,10 @@
 mod common;
 
 use bonsaidb::local::{
-	config::{Builder, StorageConfiguration},
 	AsyncDatabase,
+	config::{Builder, StorageConfiguration},
 };
-use bonsaimq::{job_registry, CurrentJob, JobRegister, JobRunner, MessageQueueSchema};
+use bonsaimq::{CurrentJob, JobRegister, JobRunner, MessageQueueSchema, job_registry};
 use color_eyre::Result;
 
 /// Example job function. It receives a handle to the current job, which gives

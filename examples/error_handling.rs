@@ -10,16 +10,16 @@
 mod common;
 
 use std::sync::{
-	atomic::{AtomicBool, Ordering},
 	Arc,
+	atomic::{AtomicBool, Ordering},
 };
 
 use bonsaidb::local::{
-	config::{Builder, StorageConfiguration},
 	AsyncDatabase,
+	config::{Builder, StorageConfiguration},
 };
-use bonsaimq::{job_registry, CurrentJob, JobRegister, JobRunner, MessageQueueSchema};
-use color_eyre::{eyre::bail, Result};
+use bonsaimq::{CurrentJob, JobRegister, JobRunner, MessageQueueSchema, job_registry};
+use color_eyre::{Result, eyre::bail};
 
 /// Example job function that returns an error.
 async fn greet(mut job: CurrentJob) -> Result<()> {

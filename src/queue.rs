@@ -5,9 +5,9 @@ use std::time::Duration;
 use bonsaidb::core::{
 	document::{CollectionDocument, Emit},
 	schema::{
-		view::{map::Mappings, ViewUpdatePolicy},
 		Collection, CollectionMapReduce, ReduceResult, Schema, View, ViewMapResult,
 		ViewMappedValue, ViewSchema,
+		view::{ViewUpdatePolicy, map::Mappings},
 	},
 };
 use serde::{Deserialize, Serialize};
@@ -178,11 +178,7 @@ impl RetryTiming {
 				let duration =
 					initial.saturating_mul(2_u32.saturating_pow(executions.saturating_sub(1)));
 
-				if let Some(max) = maximum {
-					duration.min(max)
-				} else {
-					duration
-				}
+				if let Some(max) = maximum { duration.min(max) } else { duration }
 			}
 		}
 	}

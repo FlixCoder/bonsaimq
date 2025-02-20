@@ -5,8 +5,8 @@ use std::time::Duration;
 use bonsaidb::core::{connection::AsyncConnection, schema::SerializedCollection};
 
 use crate::{
-	queue::{Id, Message},
 	Error,
+	queue::{Id, Message},
 };
 
 /// Check whether the job with the given ID exists. Can also be used to check if

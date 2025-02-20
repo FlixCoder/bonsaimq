@@ -4,7 +4,7 @@
 
 use std::{error::Error, future::Future, pin::Pin};
 
-use crate::{spawn::JobBuilder, CurrentJob};
+use crate::{CurrentJob, spawn::JobBuilder};
 
 /// Function type of the jobs returned by the job registry.
 pub type JobFunctionType = Box<

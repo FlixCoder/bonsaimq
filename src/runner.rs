@@ -5,27 +5,27 @@ use std::{
 	fmt::Debug,
 	ops::Range,
 	sync::{
-		atomic::{AtomicUsize, Ordering},
 		Arc,
+		atomic::{AtomicUsize, Ordering},
 	},
 	thread::available_parallelism,
 	time::Duration,
 };
 
 use bonsaidb::core::{
+	Error as BonsaiError,
 	async_trait::async_trait,
 	connection::AsyncConnection,
 	document::CollectionDocument,
 	pubsub::{AsyncPubSub, AsyncSubscriber},
-	schema::{view::map::MappedDocuments, Collection, SerializedCollection},
+	schema::{Collection, SerializedCollection, view::map::MappedDocuments},
 	transaction::{Operation, Transaction},
-	Error as BonsaiError,
 };
 use time::OffsetDateTime;
 
 use crate::{
-	queue::{DueMessages, Id, Message, MessagePayload, Timestamp, MQ_NOTIFY},
 	AbortOnDropHandle, CurrentJob, Error, JobRegister,
+	queue::{DueMessages, Id, MQ_NOTIFY, Message, MessagePayload, Timestamp},
 };
 
 /// Error handler dynamic function type.

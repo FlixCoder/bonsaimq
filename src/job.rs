@@ -1,16 +1,16 @@
 //! Provider for job handlers.
 
 use std::sync::{
-	atomic::{AtomicUsize, Ordering},
 	Arc,
+	atomic::{AtomicUsize, Ordering},
 };
 
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use tokio::task::JoinHandle;
-use tokio_retry::{strategy::FixedInterval, RetryIf};
+use tokio_retry::{RetryIf, strategy::FixedInterval};
 use tracing_futures::Instrument;
 
-use crate::{queue::Id, runner::JobRunnerHandle, AbortOnDropHandle, Error, JobFunctionType};
+use crate::{AbortOnDropHandle, Error, JobFunctionType, queue::Id, runner::JobRunnerHandle};
 
 /// Handle to the `JobRunner`.
 type JobRunnerHandler = Arc<dyn JobRunnerHandle + Send + Sync>;

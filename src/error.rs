@@ -2,7 +2,7 @@
 
 use std::num::TryFromIntError;
 
-use bonsaidb::core::{pubsub, Error as BonsaiError};
+use bonsaidb::core::{Error as BonsaiError, pubsub};
 use thiserror::Error;
 
 /// This crate's main error type.
