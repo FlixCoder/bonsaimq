@@ -191,8 +191,8 @@ impl RetryTiming {
 /// Generate a new ID.
 pub(crate) fn generate_id() -> Result<Id, getrandom::Error> {
 	let mut buf = [0_u8; std::mem::size_of::<Id>()];
-	getrandom::getrandom(&mut buf)?;
+	getrandom::fill(&mut buf)?;
 	// SAFETY: Safe because we made sure it has the correct size using size_of.
-	let id = unsafe { std::mem::transmute(buf) };
+	let id = unsafe { std::mem::transmute::<[u8; std::mem::size_of::<Id>()], Id>(buf) };
 	Ok(id)
 }

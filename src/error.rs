@@ -28,8 +28,8 @@ pub enum Error {
 impl Error {
 	/// Whether the action that lead to this error should likely be retried.
 	#[must_use]
-	pub fn should_retry(&self) -> bool {
-		#[allow(clippy::match_like_matches_macro)]
+	pub const fn should_retry(&self) -> bool {
+		#[allow(clippy::match_like_matches_macro, reason = "Readability & extensibility")]
 		match self {
 			Self::BonsaiDb(BonsaiError::DocumentConflict(_, _)) => true,
 			Self::BonsaiDb(BonsaiError::Networking(_)) => true,

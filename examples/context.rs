@@ -1,5 +1,11 @@
 //! Simple example using context.
-#![allow(clippy::expect_used, unused_qualifications, clippy::unused_async, clippy::print_stdout)]
+#![allow(
+	clippy::expect_used,
+	unused_qualifications,
+	clippy::unused_async,
+	clippy::print_stdout,
+	reason = "Example"
+)]
 
 mod common;
 

@@ -55,8 +55,8 @@ where
 	/// Create a new job runner on this database.
 	pub fn new(db: DB) -> Self {
 		let concurrency = available_parallelism()
-			.map(|num_cpus| usize::from(num_cpus) as u32 / 2..usize::from(num_cpus) as u32 * 2)
-			.unwrap_or(3_u32..8_u32);
+			.map(|num_cpus| usize::from(num_cpus) as u32 / 2 .. usize::from(num_cpus) as u32 * 2)
+			.unwrap_or(3_u32 .. 8_u32);
 		Self { db, error_handler: None, context: Context::new(), concurrency }
 	}
 
@@ -79,8 +79,12 @@ where
 
 	/// Set the concurrency limits.
 	#[must_use]
-	pub fn with_concurrency_limits(mut self, min_concurrent: u32, max_concurrent: u32) -> Self {
-		self.concurrency = min_concurrent..max_concurrent;
+	pub const fn with_concurrency_limits(
+		mut self,
+		min_concurrent: u32,
+		max_concurrent: u32,
+	) -> Self {
+		self.concurrency = min_concurrent .. max_concurrent;
 		self
 	}
 
@@ -150,7 +154,7 @@ where
 	) -> Result<MappedDocuments<CollectionDocument<Message>, DueMessages>, BonsaiError> {
 		self.db
 			.view::<DueMessages>()
-			.with_key_range(..due_at)
+			.with_key_range(.. due_at)
 			.limit(limit)
 			.query_with_collection_docs()
 			.await
@@ -161,7 +165,7 @@ where
 		let nanos = self
 			.db
 			.view::<DueMessages>()
-			.with_key_range(from..)
+			.with_key_range(from ..)
 			.reduce()
 			.await?
 			.map_or(10_000_000_000, |target| target - from);
@@ -198,7 +202,7 @@ where
 
 			// Retrieve due messages if there is not enough running already
 			let running = currently_running.load(Ordering::Relaxed) as u32;
-			#[allow(clippy::if_then_some_else_none)] // It is async.
+			#[expect(clippy::if_then_some_else_none, reason = "It is async")]
 			let messages = if running < self.concurrency.start {
 				Some(self.due_messages(now, self.concurrency.end.saturating_sub(running)).await?)
 			} else {
@@ -361,10 +365,7 @@ where
 			tracing::trace!("Updating job {id} for execution/retry.");
 
 			message.contents.executions += 1;
-			if message
-				.contents
-				.max_executions
-				.map_or(false, |max| message.contents.executions > max)
+			if message.contents.max_executions.is_some_and(|max| message.contents.executions > max)
 			{
 				self.complete(id).await?;
 				return Ok(false);

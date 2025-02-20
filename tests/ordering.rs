@@ -1,5 +1,5 @@
 //! Testing that job order works as expected.
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::indexing_slicing, reason = "Tests")]
 
 mod common;
 
@@ -40,7 +40,7 @@ async fn job_order() -> Result<()> {
 
 	let n = 100_u8;
 	let mut jobs = Vec::with_capacity(n as usize);
-	for i in 0..n {
+	for i in 0 .. n {
 		let job_id = JobRegistry::Counter.builder().payload_bytes(vec![i]).spawn(&db).await?;
 		jobs.push(job_id);
 	}

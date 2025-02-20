@@ -45,7 +45,7 @@ impl JobBuilder {
 	/// infinite retries with capped exponential backoff is used (1 second
 	/// initially, maximum 1 hour between tries).
 	#[must_use]
-	pub fn new(name: &'static str) -> Self {
+	pub const fn new(name: &'static str) -> Self {
 		Self {
 			name,
 			id: None,
@@ -64,7 +64,7 @@ impl JobBuilder {
 	/// Set the message's ID. If not set, a new random one will be generated.
 	#[must_use]
 	#[inline]
-	pub fn id(mut self, id: Id) -> Self {
+	pub const fn id(mut self, id: Id) -> Self {
 		self.id = Some(id);
 		self
 	}
@@ -74,7 +74,7 @@ impl JobBuilder {
 	/// always be executed independently.
 	#[must_use]
 	#[inline]
-	pub fn ordered(mut self, ordered: bool) -> Self {
+	pub const fn ordered(mut self, ordered: bool) -> Self {
 		self.ordered = ordered;
 		self
 	}
@@ -100,7 +100,7 @@ impl JobBuilder {
 	/// values.
 	#[must_use]
 	#[inline]
-	pub fn retry_timing(mut self, timing: RetryTiming) -> Self {
+	pub const fn retry_timing(mut self, timing: RetryTiming) -> Self {
 		self.retry_timing = timing;
 		self
 	}

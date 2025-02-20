@@ -52,7 +52,7 @@ macro_rules! job_registry {
 		pub enum $reg_name {
 			$(
 				#[doc = concat!("`", $msg_name, "` leading to `", stringify!($msg_fn), "`.")]
-				#[allow(non_camel_case_types)]
+				#[allow(non_camel_case_types, reason = "User provided & specific task identifiers")]
 				$msg_fn_name
 			),*
 		}
@@ -98,7 +98,7 @@ macro_rules! job_registry {
 /// Test correct macro type referencing and implementation. See if it compiles.
 #[cfg(test)]
 mod tests {
-	#![allow(clippy::expect_used, unused_qualifications, clippy::unused_async)]
+	#![allow(clippy::expect_used, unused_qualifications, clippy::unused_async, reason = "Tests")]
 
 	use color_eyre::Result;
 

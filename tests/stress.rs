@@ -1,5 +1,5 @@
 //! Stress-test, making sure everything still works as expected
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, reason = "Tests")]
 
 mod common;
 
@@ -41,7 +41,7 @@ async fn stress_test() -> Result<()> {
 
 	let n = 100;
 	let mut jobs = Vec::with_capacity(n);
-	for _ in 0..n {
+	for _ in 0 .. n {
 		let job_id =
 			JobRegistry::Counter.builder().delay(Duration::from_millis(500)).spawn(&db).await?;
 		jobs.push(job_id);

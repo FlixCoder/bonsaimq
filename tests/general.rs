@@ -1,5 +1,5 @@
 //! General tests and simple cases.
-#![allow(clippy::expect_used, clippy::unused_async)]
+#![allow(clippy::expect_used, clippy::unused_async, reason = "Tests")]
 
 mod common;
 

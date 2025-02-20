@@ -37,13 +37,13 @@ pub struct CurrentJob {
 impl CurrentJob {
 	/// Get the job's ID.
 	#[must_use]
-	pub fn id(&self) -> Id {
+	pub const fn id(&self) -> Id {
 		self.id
 	}
 
 	/// Get the job's name.
 	#[must_use]
-	pub fn name(&self) -> &'static str {
+	pub const fn name(&self) -> &'static str {
 		self.name
 	}
 
@@ -55,7 +55,7 @@ impl CurrentJob {
 
 	/// Get the job's byte input (payload).
 	#[must_use]
-	pub fn payload_bytes(&self) -> Option<&Vec<u8>> {
+	pub const fn payload_bytes(&self) -> Option<&Vec<u8>> {
 		self.payload_bytes.as_ref()
 	}
 

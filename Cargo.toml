@@ -10,28 +10,28 @@ license = "MIT"
 name = "bonsaimq"
 readme = "README.md"
 repository = "https://github.com/FlixCoder/bonsaimq"
-resolver = "2"
+rust-version = "1.85"
 version = "0.3.0"
 
 [dependencies]
 bonsaidb = "0.5.0"
-erased_set = "0.7.0"
-getrandom = {version = "0.2.6", features = ["std"]}
+erased_set = "0.8.0"
+getrandom = {version = "0.3.1", features = ["std"]}
 serde = {version = "1.0.137", features = ["derive"]}
 serde_json = "1.0.81"
-thiserror = "1.0.31"
+thiserror = "2.0.11"
 time = "0.3.9"
-tokio = {version = "1.18.0", features = ["rt", "time"]}
+tokio = {version = "1.25.0", features = ["rt", "time"]}
 tokio-retry = "0.3.0"
 tracing = "0.1.34"
 tracing-futures = "0.2.5"
 
 [dev-dependencies]
 bonsaidb = {version = "0.5.0", features = ["local", "async", "client"]}
-color-eyre = "0.6.1"
-ntest = "0.9.0"
-tokio = {version = "1.18.0", features = ["full"]}
-tracing-subscriber = {version = "0.3.11", features = ["env-filter"]}
+color-eyre = "0.6.3"
+ntest = "0.9.3"
+tokio = {version = "1.42.0", features = ["full"]}
+tracing-subscriber = {version = "0.3.19", features = ["env-filter"]}
 
 [profile.release]
 debug = true
@@ -70,11 +70,11 @@ missing_docs = "warn"
 trivial_casts = "warn"
 trivial_numeric_casts = "warn"
 unused_extern_crates = "warn"
-unused_import_braces = "warn"
-unused_qualifications = "warn"
 
 [lints.clippy]
-tabs_in_doc_comments = "allow"
+tabs_in_doc_comments = "allow" # Rustfmt setting.
+unnecessary_lazy_evaluations = "allow" # Performance better, because `Drop`.
+allow_attributes_without_reason = "warn"
 branches_sharing_code = "warn"
 cast_lossless = "warn"
 cast_possible_wrap = "warn"
@@ -98,10 +98,12 @@ implicit_clone = "warn"
 implicit_hasher = "warn"
 implicit_saturating_sub = "warn"
 imprecise_flops = "warn"
+indexing_slicing = "warn"
 inefficient_to_string = "warn"
 items_after_statements = "warn"
 iter_not_returning_iterator = "warn"
 large_digit_groups = "warn"
+large_futures = "warn"
 large_stack_arrays = "warn"
 large_types_passed_by_value = "warn"
 lossy_float_literal = "warn"
@@ -111,7 +113,7 @@ manual_ok_or = "warn"
 many_single_char_names = "warn"
 map_unwrap_or = "warn"
 mem_forget = "warn"
-#missing_const_for_fn = "warn"
+missing_const_for_fn = "warn"
 missing_docs_in_private_items = "warn"
 must_use_candidate = "warn"
 mut_mut = "warn"
@@ -124,7 +126,6 @@ print_stderr = "warn"
 print_stdout = "warn"
 ptr_as_ptr = "warn"
 range_minus_one = "warn"
-range_plus_one = "warn"
 rc_buffer = "warn"
 rc_mutex = "warn"
 redundant_closure_for_method_calls = "warn"
@@ -133,7 +134,6 @@ ref_option_ref = "warn"
 return_self_not_must_use = "warn"
 same_functions_in_if_condition = "warn"
 same_name_method = "warn"
-semicolon_if_nothing_returned = "warn"
 str_to_string = "warn"
 string_to_string = "warn"
 suboptimal_flops = "warn"

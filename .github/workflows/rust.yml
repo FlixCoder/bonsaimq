@@ -5,43 +5,50 @@ on:
     branches: ["main"]
     tags: ["*"]
   pull_request:
-    branches: ["main"]
+    branches: ["*"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  check:
-    name: Check and Test
+  formatting:
+    name: Formatting
     runs-on: ubuntu-latest
-
+    
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install/update Rust
         shell: bash
-        run: |
-          rustup update
-          rustup component add clippy
-          rustup toolchain install nightly --component rustfmt
-
-      - name: Caching
-        uses: Swatinem/rust-cache@v2
+        run: rustup toolchain install nightly --component rustfmt
 
       - name: Formatting
         shell: bash
         run: cargo +nightly fmt -- --check
 
-      - name: Check and Clippy
+  checks:
+    name: Tests and Lints
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install/update Rust
         shell: bash
-        run: cargo clippy --all-targets --workspace -- -D warnings
+        run: |
+          rustup update
+          rustup show # Uses rust-toolchain.toml file to install the correct version and components.
+
+      - name: Caching
+        uses: Swatinem/rust-cache@v2
 
       - name: Run tests
         shell: bash
         run: |
           cargo test --workspace --no-run
           cargo test --workspace -- --nocapture
+
+      - name: Check and Clippy
+        shell: bash
+        run: cargo clippy --all-targets --workspace -- -D warnings
