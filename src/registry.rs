@@ -2,7 +2,7 @@
 //! specified types. Allows to spawn new jobs / messages using
 //! `JobRegistry::Handle.builder().spawn().await?`.
 
-use std::{error::Error, future::Future, pin::Pin};
+use std::{error::Error, pin::Pin};
 
 use crate::{CurrentJob, spawn::JobBuilder};
 
