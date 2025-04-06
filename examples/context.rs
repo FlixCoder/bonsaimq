@@ -1,5 +1,6 @@
 //! Simple example using context.
 #![allow(
+	clippy::tests_outside_test_module,
 	clippy::expect_used,
 	unused_qualifications,
 	clippy::unused_async,

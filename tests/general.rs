@@ -1,5 +1,10 @@
 //! General tests and simple cases.
-#![allow(clippy::expect_used, clippy::unused_async, reason = "Tests")]
+#![allow(
+	clippy::tests_outside_test_module,
+	clippy::expect_used,
+	clippy::unused_async,
+	reason = "Tests"
+)]
 
 mod common;
 

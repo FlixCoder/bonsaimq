@@ -1,5 +1,5 @@
 //! Stress-test, making sure everything still works as expected
-#![allow(clippy::expect_used, reason = "Tests")]
+#![allow(clippy::tests_outside_test_module, clippy::expect_used, reason = "Tests")]
 
 mod common;
 

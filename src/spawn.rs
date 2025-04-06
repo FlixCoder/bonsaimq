@@ -82,7 +82,7 @@ impl JobBuilder {
 	/// Set initial execution delay.
 	#[must_use]
 	#[inline]
-	pub fn delay(mut self, delay: impl Into<Option<Duration>>) -> Self {
+	pub fn delay<D: Into<Option<Duration>>>(mut self, delay: D) -> Self {
 		self.delay = delay.into();
 		self
 	}
@@ -91,7 +91,7 @@ impl JobBuilder {
 	/// executions will result in the job never being executed!
 	#[must_use]
 	#[inline]
-	pub fn max_executions(mut self, max_executions: impl Into<Option<u32>>) -> Self {
+	pub fn max_executions<I: Into<Option<u32>>>(mut self, max_executions: I) -> Self {
 		self.max_executions = max_executions.into();
 		self
 	}

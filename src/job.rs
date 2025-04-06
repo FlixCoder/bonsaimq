@@ -2,7 +2,7 @@
 
 use std::sync::{
 	Arc,
-	atomic::{AtomicUsize, Ordering},
+	atomic::{AtomicU32, Ordering},
 };
 
 use serde::{Serialize, de::DeserializeOwned};
@@ -119,7 +119,7 @@ impl CurrentJob {
 	pub(crate) fn run(
 		mut self,
 		mut function: JobFunctionType,
-		currently_running: Arc<AtomicUsize>,
+		currently_running: Arc<AtomicU32>,
 	) -> JoinHandle<Result<(), Error>> {
 		self.keep_alive = Some(Self::keep_alive(self.db.clone(), self.id).into());
 
@@ -170,9 +170,9 @@ impl<'a> Checkpoint<'a> {
 	}
 
 	/// Set the JSON payload to a new value.
-	pub fn payload_json<S: Serialize>(
+	pub fn payload_json<S: Serialize, P: Into<Option<S>>>(
 		mut self,
-		payload: impl Into<Option<S>>,
+		payload: P,
 	) -> Result<Self, Error> {
 		let payload_json = payload.into().map(|s| serde_json::to_value(s)).transpose()?;
 		self.payload_json = payload_json;
@@ -181,7 +181,7 @@ impl<'a> Checkpoint<'a> {
 
 	/// Set the byte payload to a new value.
 	#[must_use]
-	pub fn payload_bytes(mut self, payload: impl Into<Option<Vec<u8>>>) -> Self {
+	pub fn payload_bytes<P: Into<Option<Vec<u8>>>>(mut self, payload: P) -> Self {
 		self.payload_bytes = payload.into();
 		self
 	}

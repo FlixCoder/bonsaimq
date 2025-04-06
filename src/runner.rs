@@ -6,7 +6,7 @@ use std::{
 	ops::Range,
 	sync::{
 		Arc,
-		atomic::{AtomicUsize, Ordering},
+		atomic::{AtomicU32, Ordering},
 	},
 	thread::available_parallelism,
 	time::Duration,
@@ -54,6 +54,7 @@ where
 {
 	/// Create a new job runner on this database.
 	pub fn new(db: DB) -> Self {
+		#[expect(clippy::cast_possible_truncation, reason = "Ok to truncate for number of CPUs")]
 		let concurrency = available_parallelism()
 			.map(|num_cpus| usize::from(num_cpus) as u32 / 2 .. usize::from(num_cpus) as u32 * 2)
 			.unwrap_or(3_u32 .. 8_u32);
@@ -169,6 +170,11 @@ where
 			.reduce()
 			.await?
 			.map_or(10_000_000_000, |target| target - from);
+		#[expect(clippy::cast_sign_loss, reason = "Timestamps are monotonically increasing")]
+		#[expect(
+			clippy::cast_possible_truncation,
+			reason = "Difference between now and then would be huge if this fails"
+		)]
 		let duration = Duration::from_nanos(nanos.clamp(0, u64::MAX.into()) as u64);
 		Ok(duration)
 	}
@@ -196,12 +202,12 @@ where
 		let subscriber = self.db.create_subscriber().await?;
 		subscriber.subscribe_to(&MQ_NOTIFY).await?;
 
-		let currently_running = Arc::new(AtomicUsize::new(0));
+		let currently_running = Arc::new(AtomicU32::new(0));
 		loop {
 			let now = OffsetDateTime::now_utc().unix_timestamp_nanos();
 
 			// Retrieve due messages if there is not enough running already
-			let running = currently_running.load(Ordering::Relaxed) as u32;
+			let running = currently_running.load(Ordering::Relaxed);
 			#[expect(clippy::if_then_some_else_none, reason = "It is async")]
 			let messages = if running < self.concurrency.start {
 				Some(self.due_messages(now, self.concurrency.end.saturating_sub(running)).await?)

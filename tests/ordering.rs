@@ -1,5 +1,10 @@
 //! Testing that job order works as expected.
-#![allow(clippy::expect_used, clippy::indexing_slicing, reason = "Tests")]
+#![allow(
+	clippy::tests_outside_test_module,
+	clippy::expect_used,
+	clippy::indexing_slicing,
+	reason = "Tests"
+)]
 
 mod common;
 
